@@ -19,18 +19,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (import.meta.env.DEV) {
-      setLoading(false);
-      return;
-    }
-
     // Get initial session
-    getSession().then((s) => {
-      setSession(s);
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
+    getSession()
+      .then((s) => {
+        setSession(s);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
 
     // Listen for auth changes
     const subscription = onAuthStateChange((s) => {

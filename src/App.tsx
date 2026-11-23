@@ -6,6 +6,8 @@ import { AuthPage } from '@/features/auth/AuthPage';
 import { AppShell } from '@/features/layout/AppShell';
 import { TodayPage } from '@/features/today/TodayPage';
 import { AddFoodPage } from '@/features/add-food/AddFoodPage';
+import { QuickAddPage } from '@/features/add-food/QuickAddPage';
+import { RecipeBuilderPage } from '@/features/recipes/RecipeBuilderPage';
 import { ProgressPage } from '@/features/progress/ProgressPage';
 import { SettingsPage } from '@/features/settings/SettingsPage';
 
@@ -34,6 +36,8 @@ export default function App() {
             >
               <Route index element={<TodayPage />} />
               <Route path="foods" element={<AddFoodPage />} />
+              <Route path="foods/quick" element={<QuickAddPage />} />
+              <Route path="foods/recipe" element={<RecipeBuilderPage />} />
               <Route path="add" element={<Navigate to="/foods" replace />} />
               <Route path="progress" element={<ProgressPage />} />
               <Route path="settings" element={<SettingsPage />} />

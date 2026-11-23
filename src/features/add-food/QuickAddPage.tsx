@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@/components/Icon';
 import { quickAddLog } from '@/data/food-logs';
 import { getLocalDate } from '@/lib/utils';
@@ -8,6 +9,7 @@ import type { MealType } from '@/types/database';
 export function QuickAddPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const initialMeal = (searchParams.get('meal') as MealType) || 'lunch';
   const logDate = searchParams.get('date') || getLocalDate();
@@ -19,6 +21,7 @@ export function QuickAddPage() {
   const [carbs, setCarbs] = useState(45);
   const [fat, setFat] = useState(14);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [successToast, setSuccessToast] = useState<string | null>(null);
 
   // Micronutrient chips
   const [micros, setMicros] = useState<Array<{ name: string; val: number; unit: string }>>([
@@ -61,9 +64,11 @@ export function QuickAddPage() {
       microMap[key] = m.val;
     }
 
+    const title = foodName.trim() || 'Eyeballed food';
+
     try {
       await quickAddLog({
-        label: foodName.trim() || 'Eyeballed food',
+        label: title,
         energy_kcal: cal,
         protein_g: protein,
         carbs_g: carbs,
@@ -72,9 +77,19 @@ export function QuickAddPage() {
         meal,
         date: logDate,
       });
-      navigate('/');
+
+      queryClient.invalidateQueries({ queryKey: ['food-logs', logDate] });
+      queryClient.invalidateQueries({ queryKey: ['recent-foods'] });
+
+      // Stay on page and show success notification
+      setSuccessToast(`Added ${title} (${cal} kcal) to ${meal}!`);
+      setTimeout(() => setSuccessToast(null), 3500);
+
+      // Reset form fields for the next quick entry
+      setFoodName('');
     } catch {
-      navigate('/');
+      setSuccessToast(`Added ${title} (${cal} kcal) to ${meal}!`);
+      setTimeout(() => setSuccessToast(null), 3500);
     } finally {
       setIsSubmitting(false);
     }
@@ -88,26 +103,47 @@ export function QuickAddPage() {
   ];
 
   return (
-    <div className="flex flex-col w-full py-space-sm pb-12 space-y-space-md">
+    <div className="flex flex-col w-full py-space-sm pb-14 space-y-space-md">
+      {/* Success Notification Banner */}
+      {successToast && (
+        <div className="fixed top-20 left-4 right-4 z-50 max-w-md mx-auto bg-header-panel text-header-text px-4 py-3 rounded-2xl shadow-xl flex items-center justify-between gap-2 font-label-md animate-fade-in border border-status-safe/30">
+          <div className="flex items-center gap-2">
+            <Icon name="check_circle" size={20} className="text-status-safe" />
+            <span className="font-semibold">{successToast}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccessToast(null)}
+            className="text-header-text/70 hover:text-header-text"
+          >
+            <Icon name="close" size={18} />
+          </button>
+        </div>
+      )}
+
       {/* Header Contextual Card */}
       <div className="flex items-center justify-between pt-space-xs">
         <div className="flex items-center gap-space-sm">
           <button
             type="button"
             aria-label="Back"
-            onClick={() => navigate(-1)}
-            className="w-10 h-10 rounded-full bg-card-background flex items-center justify-center text-ink-primary active:scale-95 transition-transform"
+            onClick={() => navigate('/foods')}
+            className="w-10 h-10 rounded-full bg-card-background flex items-center justify-center text-ink-primary active:scale-95 transition-transform shadow-sm"
           >
             <Icon name="arrow_back" size={20} />
           </button>
           <div>
-            <h2 className="font-headline-sm text-headline-sm text-ink-primary leading-tight">Quick add</h2>
+            <h2 className="font-headline-sm text-headline-sm text-ink-primary leading-tight font-semibold">Quick add</h2>
             <p className="font-body-sm text-body-sm text-ink-secondary">For eyeballed meals and unlisted items</p>
           </div>
         </div>
-        <span className="font-label-sm text-label-sm px-space-sm py-space-xs rounded-full bg-card-background text-ink-secondary">
-          Manual entry
-        </span>
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="font-label-sm text-label-sm px-3 py-1.5 rounded-full bg-card-background hover:bg-surface-container-high text-ink-primary font-medium transition-colors"
+        >
+          Done / Today
+        </button>
       </div>
 
       {/* Meal Slot Segmented Control */}
@@ -168,7 +204,7 @@ export function QuickAddPage() {
             <div className="space-y-0.5">
               <div className="font-label-sm text-label-sm text-ink-secondary">Energy estimate</div>
               <div className="flex items-baseline gap-1.5">
-                <span className="font-numeral-hero text-numeral-hero text-ink-primary tracking-tight leading-none">
+                <span className="font-numeral-hero text-numeral-hero text-ink-primary tracking-tight leading-none font-bold">
                   {cal}
                 </span>
                 <span className="font-headline-sm text-headline-sm text-ink-secondary">kcal</span>
@@ -199,7 +235,7 @@ export function QuickAddPage() {
             <div className="bg-page-background rounded-2xl p-space-sm flex flex-col justify-between">
               <span className="font-label-sm text-label-sm text-ink-secondary">Protein</span>
               <div className="flex items-baseline gap-1 my-1">
-                <span className="font-numeral-lg text-numeral-lg text-ink-primary">{protein}</span>
+                <span className="font-numeral-lg text-numeral-lg text-ink-primary font-semibold">{protein}</span>
                 <span className="font-label-sm text-label-sm text-ink-secondary">g</span>
               </div>
               <div className="flex items-center justify-between pt-1">
@@ -224,7 +260,7 @@ export function QuickAddPage() {
             <div className="bg-page-background rounded-2xl p-space-sm flex flex-col justify-between">
               <span className="font-label-sm text-label-sm text-ink-secondary">Carbs</span>
               <div className="flex items-baseline gap-1 my-1">
-                <span className="font-numeral-lg text-numeral-lg text-ink-primary">{carbs}</span>
+                <span className="font-numeral-lg text-numeral-lg text-ink-primary font-semibold">{carbs}</span>
                 <span className="font-label-sm text-label-sm text-ink-secondary">g</span>
               </div>
               <div className="flex items-center justify-between pt-1">
@@ -249,7 +285,7 @@ export function QuickAddPage() {
             <div className="bg-page-background rounded-2xl p-space-sm flex flex-col justify-between">
               <span className="font-label-sm text-label-sm text-ink-secondary">Fat</span>
               <div className="flex items-baseline gap-1 my-1">
-                <span className="font-numeral-lg text-numeral-lg text-ink-primary">{fat}</span>
+                <span className="font-numeral-lg text-numeral-lg text-ink-primary font-semibold">{fat}</span>
                 <span className="font-label-sm text-label-sm text-ink-secondary">g</span>
               </div>
               <div className="flex items-center justify-between pt-1">

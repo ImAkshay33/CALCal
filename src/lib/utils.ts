@@ -80,6 +80,9 @@ export function mapAuthError(error: unknown): string {
   const rawMsg = errObj.message || errObj.error_description || String(error);
   const msg = rawMsg.toLowerCase();
 
+  if (msg.includes('email signups are disabled')) {
+    return 'Email provider is disabled in Supabase. In Supabase Dashboard -> Auth -> Providers -> Email, enable Email Provider and disable Confirm Email.';
+  }
   if (msg.includes('invalid login credentials') || msg.includes('invalid_credentials')) {
     return 'Wrong username or password.';
   }
