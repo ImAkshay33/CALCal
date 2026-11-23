@@ -1,21 +1,36 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { getLocalDate } from '@/lib/utils';
 import { useFoodLogs, useDeleteFoodLog, groupByMeal, sumMacros } from '@/hooks/use-food-logs';
 import { useGoals } from '@/hooks/use-goals';
+import { updateFoodLog } from '@/data/food-logs';
 import { TodayHero } from './TodayHero';
 import { MicrosCard } from './MicrosCard';
 import { MealTimeline } from './MealTimeline';
+import { EditEntryModal } from './EditEntryModal';
 import { Icon } from '@/components/Icon';
-import type { MealType } from '@/types/database';
+import type { MealType, FoodLog } from '@/types/database';
 
 export function TodayPage() {
   const [currentDate, setCurrentDate] = useState(() => getLocalDate());
+  const [editingLog, setEditingLog] = useState<FoodLog | null>(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const { data: logs = [], isLoading: logsLoading } = useFoodLogs(currentDate);
   const { data: goals } = useGoals();
   const deleteMutation = useDeleteFoodLog(currentDate);
+
+  const handleSaveEdit = async (id: string, updates: Partial<FoodLog>) => {
+    await updateFoodLog(id, updates);
+    queryClient.invalidateQueries({ queryKey: ['food-logs', currentDate] });
+    queryClient.invalidateQueries({ queryKey: ['progress'] });
+  };
+
+  const handleDeleteFromModal = async (id: string) => {
+    deleteMutation.mutate(id);
+  };
 
   const grouped = groupByMeal(logs);
   const macros = sumMacros(logs);
@@ -88,6 +103,8 @@ export function TodayPage() {
         consumedCarbs={macros.carbs_g}
         targetFat={targetFat}
         consumedFat={macros.fat_g}
+        targetFiber={goals?.fiber_g ?? 30}
+        consumedFiber={macros.fiber_g}
       />
 
       {/* Micronutrients Collapsible Ledger Card */}
@@ -102,8 +119,19 @@ export function TodayPage() {
         <MealTimeline
           grouped={grouped}
           onDelete={(id) => deleteMutation.mutate(id)}
+          onEdit={(log) => setEditingLog(log)}
           onAddFood={handleAddFood}
           deletingId={deleteMutation.isPending ? deleteMutation.variables : null}
+        />
+      )}
+
+      {/* Edit Entry Modal */}
+      {editingLog && (
+        <EditEntryModal
+          log={editingLog}
+          onClose={() => setEditingLog(null)}
+          onSave={handleSaveEdit}
+          onDelete={handleDeleteFromModal}
         />
       )}
 

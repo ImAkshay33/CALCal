@@ -4,6 +4,7 @@ import type { FoodLog, MealType } from '@/types/database';
 interface MealTimelineProps {
   grouped: Record<MealType, FoodLog[]>;
   onDelete: (id: string) => void;
+  onEdit: (log: FoodLog) => void;
   onAddFood: (meal: MealType) => void;
   deletingId?: string | null;
 }
@@ -15,7 +16,7 @@ const MEALS: { key: MealType; label: string; icon: string }[] = [
   { key: 'snack', label: 'Snacks', icon: 'bakery_dining' },
 ];
 
-export function MealTimeline({ grouped, onDelete, onAddFood, deletingId }: MealTimelineProps) {
+export function MealTimeline({ grouped, onDelete, onEdit, onAddFood, deletingId }: MealTimelineProps) {
   return (
     <div className="flex flex-col gap-space-md">
       {MEALS.map((meal) => {
@@ -26,7 +27,7 @@ export function MealTimeline({ grouped, onDelete, onAddFood, deletingId }: MealT
         return (
           <section
             key={meal.key}
-            className={`rounded-2xl p-space-md flex flex-col gap-space-sm shadow-sm transition-all ${
+            className={`rounded-2xl p-space-md flex flex-col gap-space-sm shadow-sm transition-all hover-raise stroke-sheen ${
               hasLogs ? 'bg-card-background' : 'bg-card-background/75'
             }`}
           >
@@ -53,9 +54,10 @@ export function MealTimeline({ grouped, onDelete, onAddFood, deletingId }: MealT
                   return (
                     <div
                       key={log.id}
-                      className={`group flex items-center justify-between py-space-xs px-space-sm bg-page-background/50 rounded-xl hover:bg-page-background transition-all ${
+                      className={`group flex items-center justify-between py-space-xs px-space-sm bg-page-background/50 rounded-xl hover:bg-page-background transition-all cursor-pointer row-hover ${
                         isDeleting ? 'opacity-40 pointer-events-none' : ''
                       }`}
+                      onClick={() => onEdit(log)}
                     >
                       <div className="flex flex-col min-w-0 pr-space-xs">
                         <div className="flex items-center gap-space-xs">
@@ -73,10 +75,18 @@ export function MealTimeline({ grouped, onDelete, onAddFood, deletingId }: MealT
                         </span>
                       </div>
 
-                      <div className="flex items-center gap-space-sm shrink-0">
+                      <div className="flex items-center gap-space-sm shrink-0" onClick={(e) => e.stopPropagation()}>
                         <span className="font-headline-sm text-headline-sm text-ink-primary">
                           {Math.round(log.energy_kcal ?? 0)}
                         </span>
+                        <button
+                          type="button"
+                          aria-label={`Edit ${title}`}
+                          onClick={() => onEdit(log)}
+                          className="text-ink-secondary/70 hover:text-ink-primary p-1 rounded-full transition-colors flex items-center justify-center active:scale-95"
+                        >
+                          <Icon name="edit" size={17} />
+                        </button>
                         <button
                           type="button"
                           aria-label={`Remove ${title}`}

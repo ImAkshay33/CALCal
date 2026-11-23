@@ -59,7 +59,18 @@ export interface UserFood {
 }
 
 export interface RecipeData {
-  ingredients: { food_id: string; grams: number }[];
+  ingredients: {
+    food_id: string;
+    grams: number;
+    id?: string;
+    name?: string;
+    energy_kcal?: number | null;
+    protein_g?: number | null;
+    carbs_g?: number | null;
+    fat_g?: number | null;
+    fiber_g?: number | null;
+    micros?: MicrosMap;
+  }[];
   pieces: number;
   yield_g: number;
 }
@@ -103,6 +114,8 @@ export interface Profile {
   sex: SexType | null;
   birth_year: number | null;
   height_cm: number | null;
+  current_weight_kg: number | null;
+  target_weight_kg: number | null;
   activity_level: ActivityLevel | null;
   goal: GoalType | null;
   created_at: string;

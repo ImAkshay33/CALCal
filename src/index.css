@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import './uimaxxing.css';
 
 @theme {
   /* ── Core Botanical Ledger Color Tokens ── */

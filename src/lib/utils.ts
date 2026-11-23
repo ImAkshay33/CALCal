@@ -73,6 +73,65 @@ export function clamp(val: number, min: number, max: number): number {
   return Math.min(Math.max(val, min), max);
 }
 
+export type MagnitudeTier = 'safe' | 'warning' | 'danger';
+
+/**
+ * Calculates status tier and colors for macros, micros, and calories:
+ * - <= 100%: Green (#2d7a48 / status-safe)
+ * - 101% - 120%: Orange / Amber (#f59e0b / warning)
+ * - > 120%: Red (#c83939 / status-danger)
+ */
+export function getMagnitudeStatus(current: number, target: number) {
+  if (target <= 0) {
+    return {
+      tier: 'safe' as MagnitudeTier,
+      pct: 0,
+      barWidth: 0,
+      barColor: 'bg-status-safe',
+      textColor: 'text-status-safe',
+      badgeBg: 'bg-status-safe/10 text-status-safe',
+      label: 'On track',
+    };
+  }
+
+  const rawPct = Math.round((current / target) * 100);
+  const barWidth = Math.min(100, rawPct);
+
+  if (rawPct > 120) {
+    return {
+      tier: 'danger' as MagnitudeTier,
+      pct: rawPct,
+      barWidth,
+      barColor: 'bg-status-danger',
+      textColor: 'text-status-danger',
+      badgeBg: 'bg-status-danger/15 text-status-danger',
+      label: 'High excess',
+    };
+  }
+
+  if (rawPct > 100) {
+    return {
+      tier: 'warning' as MagnitudeTier,
+      pct: rawPct,
+      barWidth,
+      barColor: 'bg-amber-500',
+      textColor: 'text-amber-500',
+      badgeBg: 'bg-amber-500/15 text-amber-600',
+      label: 'Exceeded',
+    };
+  }
+
+  return {
+    tier: 'safe' as MagnitudeTier,
+    pct: rawPct,
+    barWidth,
+    barColor: 'bg-status-safe',
+    textColor: 'text-status-safe',
+    badgeBg: 'bg-status-safe/10 text-status-safe',
+    label: 'On track',
+  };
+}
+
 /** Map a Supabase auth error to a user-friendly message */
 export function mapAuthError(error: unknown): string {
   if (!error) return 'An unexpected error occurred.';

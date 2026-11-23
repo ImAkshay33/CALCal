@@ -9,29 +9,54 @@ export interface WaterLog {
 
 /** Fetch water log for a date */
 export async function getWaterLog(date: string): Promise<number> {
+  let userId: string | null = null;
   try {
-    const { data, error } = await supabase
-      .from('water_logs')
-      .select('ml')
-      .eq('log_date', date)
-      .maybeSingle();
-    if (!error && data) return data.ml;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) userId = user.id;
   } catch {}
-  // Local storage fallback
-  const raw = localStorage.getItem(`calcal_water_${date}`);
-  return raw ? parseInt(raw, 10) : 0;
+
+  if (userId) {
+    try {
+      const { data, error } = await supabase
+        .from('water_logs')
+        .select('ml')
+        .eq('user_id', userId)
+        .eq('log_date', date)
+        .maybeSingle();
+      if (!error && data && data.ml !== null) return Number(data.ml);
+    } catch {}
+
+    const raw = localStorage.getItem(`calcal_user_${userId}_water_${date}`);
+    if (raw) return parseInt(raw, 10);
+  }
+
+  // Fallback for legacy key
+  const legacy = localStorage.getItem(`calcal_water_${date}`);
+  return legacy ? parseInt(legacy, 10) : 0;
 }
 
 /** Update water log for a date */
 export async function updateWaterLog(date: string, ml: number): Promise<number> {
-  localStorage.setItem(`calcal_water_${date}`, String(ml));
+  let userId: string | null = null;
   try {
-    const { data: userData } = await supabase.auth.getUser();
-    if (userData?.user) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) userId = user.id;
+  } catch {}
+
+  if (userId) {
+    localStorage.setItem(`calcal_user_${userId}_water_${date}`, String(ml));
+    try {
       await supabase
         .from('water_logs')
-        .upsert({ user_id: userData.user.id, log_date: date, ml });
+        .upsert(
+          { user_id: userId, log_date: date, ml },
+          { onConflict: 'user_id,log_date' }
+        );
+    } catch (err) {
+      console.warn('Update water log error:', err);
     }
-  } catch {}
+  }
+
+  localStorage.setItem(`calcal_water_${date}`, String(ml));
   return ml;
 }

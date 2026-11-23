@@ -1,16 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@/components/Icon';
 import { useAuth } from '@/hooks/use-auth';
 import { signOut } from '@/data/auth';
 import { getGoals, upsertGoals } from '@/data/goals';
 import { getProfile, updateProfile } from '@/data/profile';
-import { getAllFoodLogs, clearAllUserData } from '@/data/food-logs';
+import { getAllFoodLogs, clearAllUserData, addWeightLog } from '@/data/food-logs';
+import { getLocalDate } from '@/lib/utils';
 import type { GoalType, ActivityLevel, SexType } from '@/types/database';
 
 export function SettingsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const username = user?.user_metadata?.username ?? 'User';
 
@@ -39,11 +42,41 @@ export function SettingsPage() {
   const [birthYear, setBirthYear] = useState(1996);
   const [activity, setActivity] = useState<ActivityLevel>('moderate');
   const [currentWeight, setCurrentWeight] = useState(68.2);
+  const [currentWeightInput, setCurrentWeightInput] = useState('68.2');
   const [targetWeight, setTargetWeight] = useState(65.0);
+  const [targetWeightInput, setTargetWeightInput] = useState('65.0');
 
   const [savedToast, setSavedToast] = useState(false);
   const [calcNotice, setCalcNotice] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
+
+  const handleWeightInputChange = (val: string) => {
+    setCurrentWeightInput(val);
+    const parsed = parseFloat(val);
+    if (!isNaN(parsed) && parsed > 0) {
+      setCurrentWeight(parsed);
+    }
+  };
+
+  const nudgeWeight = (delta: number) => {
+    const next = Math.max(30, Math.round((currentWeight + delta) * 10) / 10);
+    setCurrentWeight(next);
+    setCurrentWeightInput(next.toString());
+  };
+
+  const handleTargetWeightInputChange = (val: string) => {
+    setTargetWeightInput(val);
+    const parsed = parseFloat(val);
+    if (!isNaN(parsed) && parsed > 0) {
+      setTargetWeight(parsed);
+    }
+  };
+
+  const nudgeTargetWeight = (delta: number) => {
+    const next = Math.max(30, Math.round((targetWeight + delta) * 10) / 10);
+    setTargetWeight(next);
+    setTargetWeightInput(next.toString());
+  };
 
   useEffect(() => {
     getGoals()
@@ -73,7 +106,17 @@ export function SettingsPage() {
       .then((p) => {
         if (p) {
           if (p.sex) setSex(p.sex);
-          if (p.height_cm) setHeight(p.height_cm);
+          if (p.height_cm) {
+            setHeight(p.height_cm);
+          }
+          if (p.current_weight_kg) {
+            setCurrentWeight(p.current_weight_kg);
+            setCurrentWeightInput(p.current_weight_kg.toString());
+          }
+          if (p.target_weight_kg) {
+            setTargetWeight(p.target_weight_kg);
+            setTargetWeightInput(p.target_weight_kg.toString());
+          }
           if (p.birth_year) setBirthYear(p.birth_year);
           if (p.activity_level) setActivity(p.activity_level);
           if (p.goal) setGoal(p.goal);
@@ -133,33 +176,42 @@ export function SettingsPage() {
 
   const handleSave = async () => {
     try {
-      await upsertGoals({
-        energy_kcal: calories,
-        protein_g: protein,
-        carbs_g: carbs,
-        fat_g: fat,
-        fiber_g: fiber,
-        micro_targets: {
-          iron_mg: iron,
-          calcium_mg: calcium,
-          vitamin_b12_ug: vitB12,
-          vitamin_c_mg: vitC,
-          vitamin_d_iu: vitD,
-          zinc_mg: zinc,
-          magnesium_mg: magnesium,
-          potassium_mg: potassium,
-          folate_b9_ug: folate,
-          sodium_mg: sodium,
-        },
-      });
+      await Promise.all([
+        upsertGoals({
+          energy_kcal: calories,
+          protein_g: protein,
+          carbs_g: carbs,
+          fat_g: fat,
+          fiber_g: fiber,
+          micro_targets: {
+            iron_mg: iron,
+            calcium_mg: calcium,
+            vitamin_b12_ug: vitB12,
+            vitamin_c_mg: vitC,
+            vitamin_d_iu: vitD,
+            zinc_mg: zinc,
+            magnesium_mg: magnesium,
+            potassium_mg: potassium,
+            folate_b9_ug: folate,
+            sodium_mg: sodium,
+          },
+        }),
+        updateProfile({
+          sex,
+          goal,
+          height_cm: height,
+          birth_year: birthYear,
+          activity_level: activity,
+          current_weight_kg: currentWeight,
+          target_weight_kg: targetWeight,
+        }),
+        addWeightLog(currentWeight, getLocalDate()),
+      ]);
 
-      await updateProfile({
-        sex,
-        goal,
-        height_cm: height,
-        birth_year: birthYear,
-        activity_level: activity,
-      });
+      queryClient.invalidateQueries({ queryKey: ['profile'] });
+      queryClient.invalidateQueries({ queryKey: ['goals'] });
+      queryClient.invalidateQueries({ queryKey: ['progress'] });
+      queryClient.invalidateQueries({ queryKey: ['weight-logs'] });
 
       setSavedToast(true);
       setTimeout(() => setSavedToast(false), 2500);
@@ -319,68 +371,137 @@ export function SettingsPage() {
         </div>
 
         {/* Biometrics: Height, Birth Year, Activity */}
-        <div className="grid grid-cols-3 gap-space-sm text-center">
-          <div className="bg-surface-container-low rounded-xl p-space-sm">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-space-sm text-center">
+          {/* Height */}
+          <div className="bg-surface-container-low rounded-xl p-space-sm flex flex-col justify-between">
             <p className="font-label-sm text-label-sm text-ink-secondary">Height</p>
-            <div className="flex items-baseline justify-center gap-0.5 mt-0.5">
+            <div className="flex items-baseline justify-center gap-1 mt-1 bg-card-background border border-border-subtle rounded-xl py-1 px-2">
               <input
                 type="number"
                 value={height}
                 onChange={(e) => setHeight(parseInt(e.target.value) || 170)}
-                className="w-12 bg-transparent text-center font-title-sm text-title-sm text-ink-primary font-semibold outline-none"
+                className="w-14 bg-transparent text-center font-title-sm text-title-sm text-ink-primary font-bold outline-none"
               />
               <span className="font-normal text-ink-secondary text-body-sm">cm</span>
             </div>
           </div>
-          <div className="bg-surface-container-low rounded-xl p-space-sm">
-            <p className="font-label-sm text-label-sm text-ink-secondary">Birth year</p>
-            <input
-              type="number"
-              value={birthYear}
-              onChange={(e) => setBirthYear(parseInt(e.target.value) || 1996)}
-              className="w-16 mx-auto bg-transparent text-center font-title-sm text-title-sm text-ink-primary mt-0.5 font-semibold outline-none"
-            />
+
+          {/* Birth Year with Steppers & Age Selector */}
+          <div className="bg-surface-container-low rounded-xl p-space-sm flex flex-col justify-between">
+            <p className="font-label-sm text-label-sm text-ink-secondary">Birth year (Age)</p>
+            <div className="flex items-center justify-center gap-1 mt-1 bg-card-background border border-border-subtle rounded-xl py-0.5 px-1.5">
+              <button
+                type="button"
+                aria-label="Previous year"
+                onClick={() => setBirthYear(Math.max(1940, birthYear - 1))}
+                className="w-6 h-6 rounded flex items-center justify-center text-ink-secondary hover:text-ink-primary font-bold"
+              >
+                <Icon name="remove" size={14} />
+              </button>
+              <select
+                value={birthYear}
+                onChange={(e) => setBirthYear(parseInt(e.target.value, 10))}
+                className="bg-transparent font-title-sm text-title-sm text-ink-primary font-bold outline-none cursor-pointer text-center py-0.5"
+              >
+                {Array.from({ length: 65 }, (_, i) => 2012 - i).map((y) => (
+                  <option key={y} value={y}>
+                    {y} ({new Date().getFullYear() - y}y)
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                aria-label="Next year"
+                onClick={() => setBirthYear(Math.min(2012, birthYear + 1))}
+                className="w-6 h-6 rounded flex items-center justify-center text-ink-secondary hover:text-ink-primary font-bold"
+              >
+                <Icon name="add" size={14} />
+              </button>
+            </div>
           </div>
-          <div className="bg-surface-container-low rounded-xl p-space-sm">
-            <p className="font-label-sm text-label-sm text-ink-secondary">Activity</p>
-            <select
-              value={activity}
-              onChange={(e) => setActivity(e.target.value as ActivityLevel)}
-              className="w-full bg-transparent text-center font-title-sm text-title-sm text-ink-primary mt-0.5 capitalize font-semibold outline-none cursor-pointer"
-            >
-              <option value="sedentary">Sedentary</option>
-              <option value="light">Light</option>
-              <option value="moderate">Moderate</option>
-              <option value="active">Active</option>
-              <option value="very_active">Very active</option>
-            </select>
+
+          {/* Activity */}
+          <div className="bg-surface-container-low rounded-xl p-space-sm flex flex-col justify-between">
+            <p className="font-label-sm text-label-sm text-ink-secondary">Activity level</p>
+            <div className="mt-1 bg-card-background border border-border-subtle rounded-xl py-1 px-2">
+              <select
+                value={activity}
+                onChange={(e) => setActivity(e.target.value as ActivityLevel)}
+                className="w-full bg-transparent text-center font-title-sm text-title-sm text-ink-primary capitalize font-semibold outline-none cursor-pointer"
+              >
+                <option value="sedentary">Sedentary</option>
+                <option value="light">Light active</option>
+                <option value="moderate">Moderate</option>
+                <option value="active">Very active</option>
+                <option value="very_active">Extremely active</option>
+              </select>
+            </div>
           </div>
         </div>
 
-        {/* Weight Goals: Current & Target */}
-        <div className="grid grid-cols-2 gap-space-sm text-center">
-          <div className="bg-surface-container-low rounded-xl p-space-sm">
-            <p className="font-label-sm text-label-sm text-ink-secondary">Current weight</p>
-            <div className="flex items-baseline justify-center gap-1 mt-0.5">
+        {/* Weight Goals: Current & Target (Reliable Inputs + Steppers) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-space-sm text-center">
+          {/* Current Weight Card */}
+          <div className="bg-surface-container-low rounded-xl p-space-sm space-y-1.5 hover-raise stroke-sheen transition-all">
+            <div className="flex items-center justify-between">
+              <p className="font-label-sm text-label-sm text-ink-secondary">Current weight</p>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => nudgeWeight(-0.5)}
+                  className="px-2 py-0.5 rounded bg-card-background text-xs font-semibold text-ink-secondary hover:text-ink-primary transition-colors hover-nudge"
+                >
+                  -0.5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => nudgeWeight(0.5)}
+                  className="px-2 py-0.5 rounded bg-card-background text-xs font-semibold text-ink-secondary hover:text-ink-primary transition-colors hover-nudge"
+                >
+                  +0.5
+                </button>
+              </div>
+            </div>
+            <div className="flex items-baseline justify-center gap-1 bg-card-background border border-border-subtle rounded-xl py-1.5 px-3">
               <input
-                type="number"
-                step="0.1"
-                value={currentWeight}
-                onChange={(e) => setCurrentWeight(parseFloat(e.target.value) || 0)}
-                className="w-16 bg-transparent text-center font-title-sm text-title-sm text-ink-primary font-semibold outline-none"
+                type="text"
+                inputMode="decimal"
+                value={currentWeightInput}
+                onChange={(e) => handleWeightInputChange(e.target.value)}
+                className="w-24 bg-transparent text-center font-numeral-lg text-numeral-lg text-ink-primary font-bold outline-none caret-smooth"
               />
               <span className="font-normal text-ink-secondary text-body-sm">kg</span>
             </div>
           </div>
-          <div className="bg-surface-container-low rounded-xl p-space-sm">
-            <p className="font-label-sm text-label-sm text-ink-secondary">Target weight</p>
-            <div className="flex items-baseline justify-center gap-1 mt-0.5">
+
+          {/* Target Weight Card */}
+          <div className="bg-surface-container-low rounded-xl p-space-sm space-y-1.5 hover-raise stroke-sheen transition-all">
+            <div className="flex items-center justify-between">
+              <p className="font-label-sm text-label-sm text-ink-secondary">Target weight</p>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => nudgeTargetWeight(-0.5)}
+                  className="px-2 py-0.5 rounded bg-card-background text-xs font-semibold text-ink-secondary hover:text-ink-primary transition-colors hover-nudge"
+                >
+                  -0.5
+                </button>
+                <button
+                  type="button"
+                  onClick={() => nudgeTargetWeight(0.5)}
+                  className="px-2 py-0.5 rounded bg-card-background text-xs font-semibold text-ink-secondary hover:text-ink-primary transition-colors hover-nudge"
+                >
+                  +0.5
+                </button>
+              </div>
+            </div>
+            <div className="flex items-baseline justify-center gap-1 bg-card-background border border-border-subtle rounded-xl py-1.5 px-3">
               <input
-                type="number"
-                step="0.1"
-                value={targetWeight}
-                onChange={(e) => setTargetWeight(parseFloat(e.target.value) || 0)}
-                className="w-16 bg-transparent text-center font-title-sm text-title-sm text-ink-primary font-semibold outline-none"
+                type="text"
+                inputMode="decimal"
+                value={targetWeightInput}
+                onChange={(e) => handleTargetWeightInputChange(e.target.value)}
+                className="w-24 bg-transparent text-center font-numeral-lg text-numeral-lg text-ink-primary font-bold outline-none caret-smooth"
               />
               <span className="font-normal text-ink-secondary text-body-sm">kg</span>
             </div>

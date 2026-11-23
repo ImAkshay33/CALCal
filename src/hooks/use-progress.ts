@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { getDailySummary, getMicroByDay, getWeightLogs } from '@/data/food-logs';
 import { getWaterLog } from '@/data/water-logs';
+import { getProfile } from '@/data/profile';
 import { useGoals } from '@/hooks/use-goals';
 import { getLocalDate, addDays } from '@/lib/utils';
 
@@ -30,11 +31,12 @@ export function useProgressData(range: RangeDays = '7') {
   return useQuery({
     queryKey: ['progress', range, fromDate, today],
     queryFn: async () => {
-      const [summaries, microsRaw, weightLogs, waterToday] = await Promise.all([
+      const [summaries, microsRaw, weightLogs, waterToday, profile] = await Promise.all([
         getDailySummary(fromDate, today),
         getMicroByDay(fromDate, today),
         getWeightLogs(),
         getWaterLog(today),
+        getProfile(),
       ]);
 
       // Construct continuous day list even if DB returned empty
@@ -111,6 +113,9 @@ export function useProgressData(range: RangeDays = '7') {
       const avgF = activeDays.length > 0
         ? Math.round(activeDays.reduce((s, d) => s + d.fat, 0) / activeDays.length)
         : goals?.fat_g ?? 65;
+      const avgFiber = activeDays.length > 0
+        ? Math.round(activeDays.reduce((s, d) => s + d.fiber, 0) / activeDays.length)
+        : goals?.fiber_g ?? 30;
 
       const targetMetCount = days.filter((d) => d.calories > 0 && d.calories <= targetKcal).length;
 
@@ -160,8 +165,12 @@ export function useProgressData(range: RangeDays = '7') {
       });
 
       // Weight processing
-      const latestWeight = weightLogs.length > 0 ? Number(weightLogs[weightLogs.length - 1].weight_kg) : 68.2;
-      const initialWeight = weightLogs.length > 1 ? Number(weightLogs[0].weight_kg) : 68.8;
+      const latestWeight = weightLogs.length > 0
+        ? Number(weightLogs[weightLogs.length - 1].weight_kg)
+        : (profile?.current_weight_kg ?? 68.2);
+      const initialWeight = weightLogs.length > 1
+        ? Number(weightLogs[0].weight_kg)
+        : latestWeight;
       const weightDiff = Math.round((latestWeight - initialWeight) * 10) / 10;
 
       return {
@@ -171,6 +180,7 @@ export function useProgressData(range: RangeDays = '7') {
         avgP,
         avgC,
         avgF,
+        avgFiber,
         targetKcal,
         targetMetCount,
         streak: Math.max(1, streak),

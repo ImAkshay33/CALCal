@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@/components/Icon';
 import { quickAddLog } from '@/data/food-logs';
-import { getLocalDate } from '@/lib/utils';
+import { getLocalDate, getMagnitudeStatus } from '@/lib/utils';
 import type { MealType } from '@/types/database';
 
 export function QuickAddPage() {
@@ -20,6 +20,7 @@ export function QuickAddPage() {
   const [protein, setProtein] = useState(12);
   const [carbs, setCarbs] = useState(45);
   const [fat, setFat] = useState(14);
+  const [fiber, setFiber] = useState(5);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successToast, setSuccessToast] = useState<string | null>(null);
 
@@ -73,6 +74,7 @@ export function QuickAddPage() {
         protein_g: protein,
         carbs_g: carbs,
         fat_g: fat,
+        fiber_g: fiber,
         micros: microMap,
         meal,
         date: logDate,
@@ -229,8 +231,8 @@ export function QuickAddPage() {
             </div>
           </div>
 
-          {/* 3 Macro Cards */}
-          <div className="grid grid-cols-3 gap-space-sm">
+          {/* 4 Macro Cards: Protein, Carbs, Fat, Fiber */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-space-sm">
             {/* Protein */}
             <div className="bg-page-background rounded-2xl p-space-sm flex flex-col justify-between">
               <span className="font-label-sm text-label-sm text-ink-secondary">Protein</span>
@@ -242,14 +244,14 @@ export function QuickAddPage() {
                 <button
                   type="button"
                   onClick={() => setProtein(Math.max(0, protein - 1))}
-                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none"
+                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none hover-nudge"
                 >
                   -
                 </button>
                 <button
                   type="button"
                   onClick={() => setProtein(protein + 1)}
-                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none"
+                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none hover-nudge"
                 >
                   +
                 </button>
@@ -267,14 +269,14 @@ export function QuickAddPage() {
                 <button
                   type="button"
                   onClick={() => setCarbs(Math.max(0, carbs - 2))}
-                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none"
+                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none hover-nudge"
                 >
                   -
                 </button>
                 <button
                   type="button"
                   onClick={() => setCarbs(carbs + 2)}
-                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none"
+                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none hover-nudge"
                 >
                   +
                 </button>
@@ -292,14 +294,39 @@ export function QuickAddPage() {
                 <button
                   type="button"
                   onClick={() => setFat(Math.max(0, fat - 1))}
-                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none"
+                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none hover-nudge"
                 >
                   -
                 </button>
                 <button
                   type="button"
                   onClick={() => setFat(fat + 1)}
-                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none"
+                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none hover-nudge"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Fiber */}
+            <div className="bg-page-background rounded-2xl p-space-sm flex flex-col justify-between">
+              <span className="font-label-sm text-label-sm text-ink-secondary">Fiber</span>
+              <div className="flex items-baseline gap-1 my-1">
+                <span className="font-numeral-lg text-numeral-lg text-ink-primary font-semibold">{fiber}</span>
+                <span className="font-label-sm text-label-sm text-ink-secondary">g</span>
+              </div>
+              <div className="flex items-center justify-between pt-1">
+                <button
+                  type="button"
+                  onClick={() => setFiber(Math.max(0, fiber - 1))}
+                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none hover-nudge"
+                >
+                  -
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setFiber(fiber + 1)}
+                  className="w-6 h-6 rounded-md bg-card-background text-ink-primary flex items-center justify-center font-title-sm leading-none hover-nudge"
                 >
                   +
                 </button>
@@ -389,26 +416,33 @@ export function QuickAddPage() {
           </div>
         </div>
 
-        {/* Daily Impact Glance Row */}
-        <div className="bg-surface-container-low rounded-2xl p-space-md space-y-1.5">
-          <div className="flex items-center justify-between font-label-sm text-label-sm">
-            <span className="text-ink-primary flex items-center gap-1.5 font-medium">
-              <Icon name="donut_small" size={18} className="text-status-safe" />
-              Daily impact on {meal.charAt(0).toUpperCase() + meal.slice(1)}
-            </span>
-            <span className="text-status-safe font-semibold">+{cal} kcal</span>
-          </div>
-          <div className="flex items-center justify-between font-body-sm text-body-sm text-ink-secondary">
-            <span>Target: 2,000 kcal</span>
-            <span className="text-status-safe font-medium">Remaining: {Math.max(0, 2000 - cal)} kcal</span>
-          </div>
-          <div className="w-full h-1.5 bg-border-subtle rounded-full overflow-hidden mt-1">
-            <div
-              className="h-full bg-status-safe rounded-full"
-              style={{ width: `${Math.min(100, (cal / 2000) * 100)}%` }}
-            />
-          </div>
-        </div>
+        {/* Daily Impact Glance Row with Magnitude Coloring */}
+        {(() => {
+          const impact = getMagnitudeStatus(cal, 2000);
+          return (
+            <div className="bg-surface-container-low rounded-2xl p-space-md space-y-1.5">
+              <div className="flex items-center justify-between font-label-sm text-label-sm">
+                <span className="text-ink-primary flex items-center gap-1.5 font-medium">
+                  <Icon name="donut_small" size={18} className={impact.textColor} />
+                  Daily impact on {meal.charAt(0).toUpperCase() + meal.slice(1)}
+                </span>
+                <span className={`font-semibold ${impact.textColor}`}>+{cal} kcal</span>
+              </div>
+              <div className="flex items-center justify-between font-body-sm text-body-sm text-ink-secondary">
+                <span>Budget: 2,000 kcal</span>
+                <span className={`font-medium ${impact.textColor}`}>
+                  {cal > 2000 ? `Over budget by ${cal - 2000} kcal` : `Remaining: ${2000 - cal} kcal`}
+                </span>
+              </div>
+              <div className="w-full h-1.5 bg-border-subtle rounded-full overflow-hidden mt-1">
+                <div
+                  className={`h-full rounded-full transition-all duration-300 ${impact.barColor}`}
+                  style={{ width: `${impact.barWidth}%` }}
+                />
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* Primary Action Button */}

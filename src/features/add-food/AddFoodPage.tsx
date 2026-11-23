@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@/components/Icon';
+import { GramWheelAdjuster } from '@/components/GramWheelAdjuster';
 import {
   searchFoods,
   getUserFoods,
@@ -265,8 +266,30 @@ export function AddFoodPage() {
         </div>
       )}
 
+      {/* Dimmed Underneath Today Screen (Simulated Scrim Layer from Stitch) */}
+      <div
+        aria-hidden="true"
+        className="w-full px-space-xs pt-1 pb-3 opacity-40 pointer-events-none select-none flex flex-col gap-space-xs"
+      >
+        <div className="bg-header-panel text-header-text rounded-2xl p-space-md shadow-sm">
+          <div className="flex justify-between items-center mb-1">
+            <span className="font-label-sm text-label-sm text-header-text/75">Daily budget</span>
+            <span className="font-label-sm text-label-sm text-status-safe font-medium">On track</span>
+          </div>
+          <div className="flex items-baseline gap-space-xs">
+            <span className="font-numeral-hero text-numeral-hero leading-none">1,420</span>
+            <span className="font-body-sm text-body-sm text-header-text/70">/ 1,950 kcal remaining</span>
+          </div>
+        </div>
+      </div>
+
       {/* Main Bottom Sheet Container */}
-      <div className="w-full bg-card-background rounded-3xl p-space-md shadow-sm flex flex-col gap-space-md mt-1">
+      <div className="w-full bg-card-background rounded-t-[28px] rounded-b-2xl p-space-md shadow-xl flex flex-col gap-space-md relative mt-0.5">
+        {/* Drag Handle Indicator from Stitch */}
+        <div className="w-full flex justify-center pt-0 pb-1">
+          <div className="w-10 h-1 rounded-full bg-ink-secondary/30" />
+        </div>
+
         {/* Header Row with Meal Switcher & Return button */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-space-xs">
@@ -302,6 +325,26 @@ export function AddFoodPage() {
               {m}
             </button>
           ))}
+        </div>
+
+        {/* Quick Builder & Quick Add Shortcuts */}
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => navigate('/foods/recipe')}
+            className="flex-1 py-2 px-3 rounded-xl bg-surface-container-low hover:bg-surface-container-high border border-border-subtle/60 text-primary-container font-label-sm text-label-sm flex items-center justify-center gap-1.5 transition-all shadow-xs hover-raise hover-nudge"
+          >
+            <Icon name="soup_kitchen" size={16} />
+            <span className="font-semibold">Recipe builder</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(`/foods/quick?meal=${meal}&date=${dateParam}`)}
+            className="flex-1 py-2 px-3 rounded-xl bg-surface-container-low hover:bg-surface-container-high border border-border-subtle/60 text-primary-container font-label-sm text-label-sm flex items-center justify-center gap-1.5 transition-all shadow-xs hover-raise hover-nudge"
+          >
+            <Icon name="flash_on" size={16} />
+            <span className="font-semibold">Quick add</span>
+          </button>
         </div>
 
         {/* Search Input Field */}
@@ -410,6 +453,20 @@ export function AddFoodPage() {
                     <span className="font-numeral-lg text-numeral-lg text-ink-primary font-semibold">
                       {Math.round(food.energy_kcal ?? 0)}
                     </span>
+                    {isMine && (
+                      <button
+                        type="button"
+                        aria-label={`Edit ${food.name} recipe`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate(`/foods/recipe?edit=${food.id}`);
+                        }}
+                        className="p-1 text-ink-secondary hover:text-ink-primary rounded-full hover:bg-surface-container-highest transition-colors"
+                        title="Edit recipe ingredients"
+                      >
+                        <Icon name="edit" size={18} />
+                      </button>
+                    )}
                     <Icon
                       name={isSelected ? 'check_circle' : 'add_circle'}
                       size={20}
@@ -483,32 +540,58 @@ export function AddFoodPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between bg-card-background rounded-xl p-2 px-3">
-                <span className="font-body-md text-body-md text-ink-primary">
-                  {isGrams ? 'Weight in grams' : 'Number of servings'}
-                </span>
-                <div className="flex items-center gap-space-sm">
-                  <button
-                    type="button"
-                    aria-label="Decrease quantity"
-                    onClick={() => setServingsCount(Math.max(1, servingsCount - (isGrams ? 10 : 1)))}
-                    className="w-8 h-8 rounded-lg bg-page-background text-ink-primary font-title-sm text-title-sm flex items-center justify-center active:scale-95 transition-transform"
-                  >
-                    <Icon name="remove" size={18} />
-                  </button>
-                  <span className="font-numeral-lg text-numeral-lg text-ink-primary w-12 text-center font-bold">
-                    {servingsCount}
-                  </span>
-                  <button
-                    type="button"
-                    aria-label="Increase quantity"
-                    onClick={() => setServingsCount(servingsCount + (isGrams ? 10 : 1))}
-                    className="w-8 h-8 rounded-lg bg-page-background text-ink-primary font-title-sm text-title-sm flex items-center justify-center active:scale-95 transition-transform"
-                  >
-                    <Icon name="add" size={18} />
-                  </button>
+              {isGrams ? (
+                <GramWheelAdjuster grams={servingsCount} onChange={(g) => setServingsCount(g)} />
+              ) : (
+                <div className="flex flex-col gap-2 bg-card-background rounded-2xl p-space-md border border-border-subtle">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-label-sm text-label-sm text-ink-secondary block">Number of servings</span>
+                      <span className="font-body-sm text-body-sm text-ink-primary font-medium">{servingLabel}</span>
+                    </div>
+                    <div className="flex items-center gap-space-sm bg-surface-container-low px-2 py-1 rounded-xl border border-border-subtle">
+                      <button
+                        type="button"
+                        aria-label="Decrease quantity"
+                        onClick={() => setServingsCount(Math.max(0.5, servingsCount - 1))}
+                        className="w-8 h-8 rounded-lg bg-card-background text-ink-primary font-title-sm text-title-sm flex items-center justify-center active:scale-95 transition-transform"
+                      >
+                        <Icon name="remove" size={18} />
+                      </button>
+                      <span className="font-numeral-lg text-numeral-lg text-ink-primary w-10 text-center font-bold">
+                        {servingsCount}
+                      </span>
+                      <button
+                        type="button"
+                        aria-label="Increase quantity"
+                        onClick={() => setServingsCount(servingsCount + 1)}
+                        className="w-8 h-8 rounded-lg bg-card-background text-ink-primary font-title-sm text-title-sm flex items-center justify-center active:scale-95 transition-transform"
+                      >
+                        <Icon name="add" size={18} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Serving shortcut pills */}
+                  <div className="flex items-center gap-2 pt-1">
+                    <span className="text-[11px] text-ink-secondary font-medium">Quick:</span>
+                    {[0.5, 1, 1.5, 2, 3].map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setServingsCount(s)}
+                        className={`px-2.5 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                          servingsCount === s
+                            ? 'bg-header-panel text-header-text'
+                            : 'bg-page-background text-ink-secondary hover:text-ink-primary'
+                        }`}
+                      >
+                        {s}x
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             {/* Live Preview Stat Row */}

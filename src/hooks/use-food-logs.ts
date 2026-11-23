@@ -1,12 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getFoodLogs, deleteFoodLog } from '@/data/food-logs';
+import { useAuth } from '@/hooks/use-auth';
 import type { FoodLog, MealType } from '@/types/database';
 
 export function useFoodLogs(date: string) {
+  const { user } = useAuth();
+  const userId = user?.id ?? 'guest';
+
   return useQuery({
-    queryKey: ['food-logs', date],
+    queryKey: ['food-logs', userId, date],
     queryFn: () => getFoodLogs(date),
-    staleTime: 30_000,
+    staleTime: 5_000,
   });
 }
 

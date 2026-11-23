@@ -38,6 +38,7 @@ export default function App() {
               <Route path="foods" element={<AddFoodPage />} />
               <Route path="foods/quick" element={<QuickAddPage />} />
               <Route path="foods/recipe" element={<RecipeBuilderPage />} />
+              <Route path="recipes" element={<RecipeBuilderPage />} />
               <Route path="add" element={<Navigate to="/foods" replace />} />
               <Route path="progress" element={<ProgressPage />} />
               <Route path="settings" element={<SettingsPage />} />

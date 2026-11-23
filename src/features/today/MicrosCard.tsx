@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Icon } from '@/components/Icon';
+import { getMagnitudeStatus } from '@/lib/utils';
 
 interface MicroSummary {
   name: string;
@@ -23,10 +24,14 @@ export function MicrosCard({ micros }: MicrosCardProps) {
     { name: 'Fiber', unit: 'g', current: 28, target: 35 },
   ];
 
-  const onTrackCount = items.filter((m) => m.target > 0 && (m.current / m.target) >= 0.7).length;
+  const onTrackCount = items.filter((m) => {
+    if (m.target <= 0) return true;
+    const ratio = m.current / m.target;
+    return ratio >= 0.7 && ratio <= 1.2;
+  }).length;
 
   return (
-    <section className="bg-card-background rounded-2xl p-space-md flex flex-col gap-space-sm shadow-sm transition-all duration-200">
+    <section className="bg-card-background rounded-2xl p-space-md flex flex-col gap-space-sm shadow-sm transition-all duration-200 hover-raise stroke-sheen">
       <button
         type="button"
         aria-expanded={expanded}
@@ -35,10 +40,10 @@ export function MicrosCard({ micros }: MicrosCardProps) {
       >
         <div className="flex items-center gap-space-xs">
           <Icon name="nutrition" size={20} className="text-ink-secondary" />
-          <h2 className="font-title-sm text-title-sm text-ink-primary">Micros today</h2>
+          <h2 className="font-title-sm text-title-sm text-ink-primary font-semibold">Micros today</h2>
         </div>
         <div className="flex items-center gap-space-xs text-ink-secondary">
-          <span className="font-label-sm text-label-sm">{onTrackCount} on track</span>
+          <span className="font-label-sm text-label-sm">{onTrackCount} of {items.length} on track</span>
           <Icon
             name={expanded ? 'expand_less' : 'expand_more'}
             size={20}
@@ -50,20 +55,23 @@ export function MicrosCard({ micros }: MicrosCardProps) {
       {expanded && (
         <div className="grid grid-cols-2 gap-space-sm pt-space-xs">
           {items.map((item) => {
-            const pct = item.target > 0 ? Math.min(100, Math.round((item.current / item.target) * 100)) : 0;
+            const status = getMagnitudeStatus(item.current, item.target);
+
             return (
               <div
                 key={item.name}
-                className="bg-page-background/70 rounded-xl p-space-sm flex flex-col gap-1"
+                className="bg-page-background/70 rounded-xl p-space-sm flex flex-col gap-1 row-hover transition-colors"
               >
                 <div className="flex justify-between items-center font-label-sm text-label-sm">
-                  <span className="text-ink-secondary">{item.name}</span>
-                  <span className="font-semibold text-status-safe">{pct}%</span>
+                  <span className="text-ink-secondary truncate pr-1">{item.name}</span>
+                  <span className={`font-semibold ${status.textColor}`}>
+                    {status.pct}%
+                  </span>
                 </div>
                 <div className="h-1.5 w-full bg-card-background rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-status-safe rounded-full transition-all duration-300"
-                    style={{ width: `${pct}%` }}
+                    className={`h-full rounded-full transition-all duration-300 ${status.barColor}`}
+                    style={{ width: `${status.barWidth}%` }}
                   />
                 </div>
               </div>

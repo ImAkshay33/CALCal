@@ -295,8 +295,8 @@ export function AuthPage() {
               </form>
             </div>
 
-            {/* Alternate Mode Prompt */}
-            <div className="text-center mt-space-md mb-space-sm">
+            {/* Alternate Mode Prompt & Guest Mode */}
+            <div className="text-center mt-space-md mb-space-sm space-y-2">
               <p className="font-body-md text-body-md text-ink-secondary">
                 {mode === 'create' ? 'Already have an account?' : 'New to CALCal?'}
                 <button
@@ -310,6 +310,15 @@ export function AuthPage() {
                   {mode === 'create' ? 'Sign in' : 'Create account'}
                 </button>
               </p>
+              <div>
+                <button
+                  type="button"
+                  onClick={() => navigate('/')}
+                  className="font-label-sm text-label-sm text-ink-secondary hover:text-ink-primary transition-colors py-1 px-3 rounded-full hover:bg-card-background"
+                >
+                  Continue as guest &rarr;
+                </button>
+              </div>
             </div>
           </section>
         </div>
