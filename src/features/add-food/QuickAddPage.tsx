@@ -182,7 +182,7 @@ export function QuickAddPage() {
               type="text"
               value={foodName}
               onChange={(e) => setFoodName(e.target.value)}
-              placeholder="e.g., street vendor chaat, wedding buffet curry"
+              placeholder="e.g., Office cafeteria lunch, dinner with friends"
               className="w-full bg-page-background text-ink-primary font-body-md text-body-md rounded-xl px-space-md py-3 placeholder:text-ink-secondary/60 focus:outline-none focus:bg-surface-container-low transition-colors"
             />
             <span className="text-ink-secondary absolute right-3 pointer-events-none">

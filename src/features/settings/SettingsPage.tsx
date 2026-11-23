@@ -48,6 +48,38 @@ export function SettingsPage() {
 
   const [savedToast, setSavedToast] = useState(false);
   const [calcNotice, setCalcNotice] = useState<string | null>(null);
+
+  // Web App PWA install prompt
+  const [installPrompt, setInstallPrompt] = useState<any>(null);
+  const [isInstalled, setIsInstalled] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setInstallPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    if (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as any).standalone === true
+    ) {
+      setIsInstalled(true);
+    }
+
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstallClick = async () => {
+    if (installPrompt) {
+      installPrompt.prompt();
+      const choice = await installPrompt.userChoice;
+      if (choice?.outcome === 'accepted') {
+        setIsInstalled(true);
+        setInstallPrompt(null);
+      }
+    }
+  };
   const [exporting, setExporting] = useState(false);
 
   const handleWeightInputChange = (val: string) => {
@@ -811,6 +843,52 @@ export function SettingsPage() {
           </div>
         </div>
       </details>
+
+      {/* Install App / Home Screen Shortcut */}
+      <section className="bg-card-background rounded-2xl p-space-md shadow-sm border border-border-subtle/50 flex flex-col gap-space-sm">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-space-xs">
+            <div className="w-9 h-9 rounded-xl bg-header-panel text-header-text flex items-center justify-center">
+              <Icon name="install_mobile" size={20} />
+            </div>
+            <div>
+              <h2 className="font-title-sm text-title-sm text-ink-primary font-semibold">
+                Install as Web App
+              </h2>
+              <span className="font-body-sm text-body-sm text-ink-secondary">
+                {isInstalled ? 'Running as standalone web app' : 'Add shortcut to your Home Screen or Desktop'}
+              </span>
+            </div>
+          </div>
+          {isInstalled && (
+            <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-status-safe/15 text-status-safe border border-status-safe/30">
+              Installed
+            </span>
+          )}
+        </div>
+
+        {!isInstalled && (
+          <div className="mt-1 flex flex-col gap-2">
+            {installPrompt ? (
+              <button
+                type="button"
+                onClick={handleInstallClick}
+                className="w-full py-2.5 px-4 rounded-xl bg-action-primary text-action-text font-label-md text-label-md font-semibold flex items-center justify-center gap-2 shadow-sm hover:brightness-105 active:scale-[0.98] transition-all"
+              >
+                <Icon name="add_to_home_screen" size={18} />
+                <span>Add CALCal to Home Screen</span>
+              </button>
+            ) : (
+              <div className="bg-page-background rounded-xl p-space-sm text-ink-secondary font-body-sm text-xs leading-relaxed space-y-1.5 border border-border-subtle/40">
+                <p className="font-medium text-ink-primary">How to create a 1-tap shortcut:</p>
+                <p>&bull; <strong>iPhone (Safari):</strong> Tap <strong>Share</strong> (box with up arrow) &rarr; scroll down &rarr; tap <strong>&ldquo;Add to Home Screen&rdquo;</strong>.</p>
+                <p>&bull; <strong>Android (Chrome):</strong> Tap <strong>Menu</strong> (3 dots) &rarr; tap <strong>&ldquo;Install app&rdquo;</strong> or <strong>&ldquo;Add to Home screen&rdquo;</strong>.</p>
+                <p>&bull; <strong>Desktop (Chrome/Edge):</strong> Click the <strong>Install</strong> icon on the right side of the URL bar.</p>
+              </div>
+            )}
+          </div>
+        )}
+      </section>
 
       {/* Bottom Action Rows */}
       <section className="bg-card-background rounded-2xl p-space-sm shadow-sm divide-y divide-border-subtle overflow-hidden">

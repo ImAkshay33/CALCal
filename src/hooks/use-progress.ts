@@ -147,14 +147,12 @@ export function useProgressData(range: RangeDays = '7') {
       const last7Days = days.slice(-7);
       const heatmapRows = trackedMicros.map((micro) => {
         const targetVal = microTargets[micro.key] || defaultTargets[micro.key] || 100;
-        const dayPcts = last7Days.map((d, idx) => {
+        const dayPcts = last7Days.map((d) => {
           const val = microDayMap.get(`${d.date}_${micro.key}`);
           if (val != null && val > 0) {
             return Math.round((val / targetVal) * 100);
           }
-          // fallback baseline for display
-          const mockPattern = [88, 92, 104, 74, 85, 95, 68];
-          return mockPattern[(idx + micro.label.length) % mockPattern.length];
+          return 0;
         });
 
         return {
@@ -167,7 +165,7 @@ export function useProgressData(range: RangeDays = '7') {
       // Weight processing
       const latestWeight = weightLogs.length > 0
         ? Number(weightLogs[weightLogs.length - 1].weight_kg)
-        : (profile?.current_weight_kg ?? 68.2);
+        : (profile?.current_weight_kg ?? 70);
       const initialWeight = weightLogs.length > 1
         ? Number(weightLogs[0].weight_kg)
         : latestWeight;

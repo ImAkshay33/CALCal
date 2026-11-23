@@ -8,7 +8,7 @@ import { Icon } from '@/components/Icon';
 type AuthMode = 'signin' | 'create';
 
 export function AuthPage() {
-  const [mode, setMode] = useState<AuthMode>('create');
+  const [mode, setMode] = useState<AuthMode>('signin');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [retypePassword, setRetypePassword] = useState('');
@@ -190,7 +190,7 @@ export function AuthPage() {
                       autoComplete="username"
                       value={username}
                       onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                      placeholder="e.g. priya_sharma"
+                      placeholder="Choose username (e.g. rahul, alex)"
                       required
                       className="w-full bg-page-background text-ink-primary font-body-md text-body-md rounded-xl px-space-md py-3 pr-10 focus:outline-none focus:bg-surface-container-high transition-colors placeholder:text-ink-secondary/60"
                     />

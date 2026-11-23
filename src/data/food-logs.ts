@@ -354,22 +354,21 @@ export async function getUserFoods(): Promise<UserFood[]> {
     if (user) userId = user.id;
   } catch {}
 
+  const activeUserId = userId || 'local_user';
   const map = new Map<string, UserFood>();
 
   // 1. User-isolated local storage mirror
-  if (userId) {
-    try {
-      const cached = localStorage.getItem(`calcal_user_${userId}_user_foods`);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        for (const item of parsed) {
-          map.set(item.id, item);
-        }
+  try {
+    const cached = localStorage.getItem(`calcal_user_${activeUserId}_user_foods`);
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      for (const item of parsed) {
+        map.set(item.id, item);
       }
-    } catch {}
-  }
+    }
+  } catch {}
 
-  // 2. Fetch from Supabase strictly for this user
+  // 2. Fetch from Supabase strictly for this authenticated user
   if (userId) {
     try {
       const { data, error } = await supabase
@@ -387,8 +386,8 @@ export async function getUserFoods(): Promise<UserFood[]> {
   }
 
   const list = Array.from(map.values()).sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
-  if (userId && list.length > 0) {
-    localStorage.setItem(`calcal_user_${userId}_user_foods`, JSON.stringify(list));
+  if (list.length > 0) {
+    localStorage.setItem(`calcal_user_${activeUserId}_user_foods`, JSON.stringify(list));
   }
   return list;
 }
@@ -456,15 +455,15 @@ export async function createUserFood(food: {
     } catch (err) {
       console.warn('Create user food error in Supabase:', err);
     }
-
-    // Always mirror to user-specific local storage
-    try {
-      const cached = localStorage.getItem(`calcal_user_${userId}_user_foods`);
-      const list: UserFood[] = cached ? JSON.parse(cached) : [];
-      const updated = [saved, ...list.filter((f) => f.id !== saved.id)];
-      localStorage.setItem(`calcal_user_${userId}_user_foods`, JSON.stringify(updated));
-    } catch {}
   }
+
+  // Always mirror to user-specific local storage
+  try {
+    const cached = localStorage.getItem(`calcal_user_${userId}_user_foods`);
+    const list: UserFood[] = cached ? JSON.parse(cached) : [];
+    const updated = [saved, ...list.filter((f) => f.id !== saved.id)];
+    localStorage.setItem(`calcal_user_${userId}_user_foods`, JSON.stringify(updated));
+  } catch {}
 
   return saved;
 }

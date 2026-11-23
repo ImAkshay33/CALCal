@@ -1,17 +1,19 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@/components/Icon';
 import { createUserFood, updateUserFood, getUserFoodById, searchFoods } from '@/data/food-logs';
 import { calculateRecipeNutrition, type RecipeIngredientItem } from '@/lib/recipe-calculator';
 
 export function RecipeBuilderPage() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit');
 
-  const [dishName, setDishName] = useState('Home-style Palak Paneer');
-  const [servings, setServings] = useState(4);
-  const [portionEstimate, setPortionEstimate] = useState('1 bowl (200g)');
+  const [dishName, setDishName] = useState('');
+  const [servings, setServings] = useState(1);
+  const [portionEstimate, setPortionEstimate] = useState('');
   const [isSaved, setIsSaved] = useState(false);
   const [isLoadingRecipe, setIsLoadingRecipe] = useState(false);
 
@@ -99,52 +101,7 @@ export function RecipeBuilderPage() {
     setShowAddModal(false);
   };
 
-  const [ingredients, setIngredients] = useState<RecipeIngredientItem[]>([
-    {
-      id: 'paneer-1',
-      name: 'Paneer, fresh Malai',
-      grams: 200,
-      energy_kcal: 265,
-      protein_g: 18.0,
-      carbs_g: 3.0,
-      fat_g: 20.0,
-      fiber_g: 0,
-      micros: { calcium_mg: 480 },
-    },
-    {
-      id: 'palak-1',
-      name: 'Spinach / Palak, blanched',
-      grams: 300,
-      energy_kcal: 23,
-      protein_g: 3.0,
-      carbs_g: 3.7,
-      fat_g: 0.3,
-      fiber_g: 2.2,
-      micros: { iron_mg: 2.8 },
-    },
-    {
-      id: 'ghee-1',
-      name: 'Desi cow ghee (tadka)',
-      grams: 18,
-      energy_kcal: 900,
-      protein_g: 0,
-      carbs_g: 0,
-      fat_g: 100,
-      fiber_g: 0,
-      micros: {},
-    },
-    {
-      id: 'gravy-1',
-      name: 'Onion-Tomato-Ginger gravy',
-      grams: 250,
-      energy_kcal: 150,
-      protein_g: 3.2,
-      carbs_g: 7.6,
-      fat_g: 10.0,
-      fiber_g: 1.8,
-      micros: { vitamin_c_mg: 12 },
-    },
-  ]);
+  const [ingredients, setIngredients] = useState<RecipeIngredientItem[]>([]);
 
   // Recalculate using pure function
   const nutrition = calculateRecipeNutrition(ingredients, servings);
@@ -234,6 +191,8 @@ export function RecipeBuilderPage() {
       } else {
         await createUserFood(payload);
       }
+      queryClient.invalidateQueries({ queryKey: ['user-foods'] });
+      queryClient.invalidateQueries({ queryKey: ['recent-foods'] });
     } catch {}
 
     setIsSaved(true);
@@ -411,7 +370,7 @@ export function RecipeBuilderPage() {
               type="text"
               value={dishName}
               onChange={(e) => setDishName(e.target.value)}
-              placeholder="e.g. Grandma's Dal Tadka, Matar Makhana..."
+              placeholder="e.g. Yellow Dal Tadka, Protein Oats, Chicken Curry..."
               className="w-full bg-card-background text-ink-primary font-body-md text-body-md rounded-xl px-space-md py-3 placeholder:text-ink-secondary/60 focus:outline-none focus:bg-surface-container-lowest transition-all"
             />
             <span className="text-ink-secondary/60 absolute right-3.5 top-3 pointer-events-none">
@@ -483,7 +442,28 @@ export function RecipeBuilderPage() {
         </div>
 
         <div className="flex flex-col gap-space-sm mt-1">
-          {ingredients.map((ing) => {
+          {ingredients.length === 0 ? (
+            <div className="bg-card-background rounded-2xl p-space-lg flex flex-col items-center justify-center text-center gap-2 border border-dashed border-border-subtle py-8">
+              <div className="w-10 h-10 rounded-full bg-page-background flex items-center justify-center text-action-primary">
+                <Icon name="soup_kitchen" size={20} />
+              </div>
+              <span className="font-label-md text-label-md text-ink-primary font-medium">
+                No ingredients added yet
+              </span>
+              <p className="font-body-sm text-body-sm text-ink-secondary max-w-xs">
+                Tap &ldquo;Add ingredient&rdquo; to search the food database or input custom ingredients with your own macros.
+              </p>
+              <button
+                type="button"
+                onClick={() => setShowAddModal(true)}
+                className="mt-2 px-4 py-2 rounded-xl bg-action-primary text-action-text font-label-md text-label-md font-semibold flex items-center gap-1.5 shadow-sm active:scale-95 transition-all"
+              >
+                <Icon name="add" size={18} />
+                <span>Add first ingredient</span>
+              </button>
+            </div>
+          ) : (
+            ingredients.map((ing) => {
             const ingFactor = ing.grams / 100;
             const ingKcal = Math.round((ing.energy_kcal ?? 0) * ingFactor);
             const ingP = Math.round((ing.protein_g ?? 0) * ingFactor * 10) / 10;
@@ -526,7 +506,8 @@ export function RecipeBuilderPage() {
                 </div>
               </div>
             );
-          })}
+          })
+        )}
         </div>
       </section>
 
@@ -606,7 +587,7 @@ export function RecipeBuilderPage() {
                       type="text"
                       value={searchQuery}
                       onChange={(e) => handleSearchModal(e.target.value)}
-                      placeholder="Search food e.g. chana, dal, potato..."
+                      placeholder="Search database (e.g. rice, paneer, dal)..."
                       className="w-full bg-page-background text-ink-primary text-sm rounded-xl px-3 py-2.5 outline-none"
                     />
                   </div>
@@ -649,7 +630,7 @@ export function RecipeBuilderPage() {
                     type="text"
                     value={customName}
                     onChange={(e) => setCustomName(e.target.value)}
-                    placeholder="e.g. Grandma's spice blend, Homemade paneer, Chai masala..."
+                    placeholder="e.g. Whey scoop, Protein cookie, Marinade..."
                     className="w-full bg-page-background text-ink-primary text-sm rounded-xl px-3 py-2 outline-none border border-border-subtle"
                   />
                 </div>

@@ -34,7 +34,29 @@ export async function signOut() {
 
 export async function getSession(): Promise<Session | null> {
   const { data, error } = await supabase.auth.getSession();
-  if (error) throw error;
+  if (error || !data?.session) return null;
+
+  // Auto-refresh token if expired or about to expire in under 2 minutes
+  const isExpiring = data.session.expires_at
+    ? data.session.expires_at * 1000 < Date.now() + 120_000
+    : false;
+
+  if (isExpiring) {
+    try {
+      const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
+      if (!refreshErr && refreshed.session) {
+        return refreshed.session;
+      }
+    } catch {
+      // Fallback to getUser which auto-refreshes against Supabase auth server
+      const { data: userRes } = await supabase.auth.getUser();
+      if (userRes?.user) {
+        const { data: secondCheck } = await supabase.auth.getSession();
+        return secondCheck.session;
+      }
+    }
+  }
+
   return data.session;
 }
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Icon } from '@/components/Icon';
 import { GramWheelAdjuster } from '@/components/GramWheelAdjuster';
 import {
@@ -30,7 +30,11 @@ export function AddFoodPage() {
   const [activeTab, setActiveTab] = useState<'search' | 'recent' | 'frequent' | 'favorites' | 'my_foods'>('search');
 
   const [results, setResults] = useState<(Food | UserFood)[]>([]);
-  const [myFoods, setMyFoods] = useState<UserFood[]>([]);
+  const { data: myFoods = [] } = useQuery<UserFood[]>({
+    queryKey: ['user-foods'],
+    queryFn: getUserFoods,
+    staleTime: 5_000,
+  });
   const [recentLogs, setRecentLogs] = useState<any[]>([]);
   const [frequentLogs, setFrequentLogs] = useState<any[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
@@ -74,9 +78,8 @@ export function AddFoodPage() {
     } as Food,
   ];
 
-  // Load My Foods, Favorites, Recent, and Frequent
+  // Load Favorites, Recent, and Frequent
   useEffect(() => {
-    getUserFoods().then(setMyFoods).catch(() => {});
     getRecentFoods().then(setRecentLogs).catch(() => {});
     getFrequentFoods().then(setFrequentLogs).catch(() => {});
     getFavorites().then((favs) => setFavoriteIds(new Set(favs))).catch(() => {});
@@ -116,34 +119,31 @@ export function AddFoodPage() {
       return;
     }
 
-    // Search tab
+    // Search tab: User's custom exclusive recipes ALWAYS pop up at the top
     if (!searchQuery.trim()) {
-      setResults(defaultIndianFoods as Food[]);
+      setResults([...myFoods, ...(defaultIndianFoods as Food[])]);
       return;
     }
 
     const timer = setTimeout(async () => {
       try {
         const globalResults = await searchFoods(searchQuery);
+        const q = searchQuery.toLowerCase();
         const matchedMyFoods = myFoods.filter((f) =>
-          f.name.toLowerCase().includes(searchQuery.toLowerCase())
+          f.name.toLowerCase().includes(q)
         );
-        const combined = [...matchedMyFoods, ...globalResults];
-        setResults(combined.length > 0 ? combined : (defaultIndianFoods as Food[]));
+        const combined = [
+          ...matchedMyFoods,
+          ...globalResults.filter((g) => !matchedMyFoods.some((m) => m.id === g.id)),
+        ];
+        setResults(combined.length > 0 ? combined : [...myFoods, ...(defaultIndianFoods as Food[])]);
       } catch {
-        setResults(defaultIndianFoods as Food[]);
+        setResults([...myFoods, ...(defaultIndianFoods as Food[])]);
       }
-    }, 250);
+    }, 200);
 
     return () => clearTimeout(timer);
   }, [searchQuery, activeTab, myFoods, recentLogs, frequentLogs, favoriteIds]);
-
-  // Default selection
-  useEffect(() => {
-    if (results.length > 0 && !selectedFood) {
-      setSelectedFood(results[0]);
-    }
-  }, [results, selectedFood]);
 
   // Fetch food servings when selected food changes
   useEffect(() => {
@@ -357,7 +357,7 @@ export function AddFoodPage() {
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Try dosa, atta, dal or paneer..."
+            placeholder="Search staples, pantry items, or custom recipes..."
             className="w-full pl-10 pr-10 py-3 bg-page-background text-ink-primary font-body-md text-body-md rounded-xl placeholder:text-ink-secondary/60 focus:outline-none focus:bg-surface-container-lowest transition-colors"
           />
           {searchQuery && (
@@ -422,14 +422,19 @@ export function AddFoodPage() {
           <div className="flex flex-col gap-1.5 max-h-56 overflow-y-auto pr-1">
             {results.map((food) => {
               const isSelected = selectedFood?.id === food.id;
-              const isMine = 'user_id' in food;
+              const isMine = 'user_id' in food || 'recipe' in food;
 
               return (
                 <div
                   key={food.id}
                   onClick={() => setSelectedFood(food)}
-                  className={`p-3 rounded-xl flex items-center justify-between transition-colors cursor-pointer ${
-                    isSelected
+                  className={`p-3 rounded-xl flex items-center justify-between transition-all cursor-pointer relative ${
+                    isMine
+                      ? 'border-y border-y-border-subtle/40 border-x-4 border-x-[#7b2cff] shadow-[inset_4px_0_12px_-2px_rgba(123,44,255,0.25),inset_-4px_0_12px_-2px_rgba(123,44,255,0.25)] ' +
+                        (isSelected
+                          ? 'bg-surface-container-high'
+                          : 'bg-surface-container-low/90 hover:bg-surface-container-high')
+                      : isSelected
                       ? 'bg-surface-container-high border border-border-subtle'
                       : 'bg-page-background hover:bg-surface-container-high'
                   }`}
@@ -440,8 +445,9 @@ export function AddFoodPage() {
                         {food.name}
                       </span>
                       {isMine && (
-                        <span className="px-2 py-0.5 rounded-full font-label-sm text-label-sm text-status-safe bg-surface-container-lowest shrink-0">
-                          Mine
+                        <span className="px-2 py-0.5 rounded-full font-label-sm text-[11px] font-semibold text-[#7b2cff] bg-[#7b2cff]/10 border border-[#7b2cff]/30 shrink-0 flex items-center gap-1">
+                          <Icon name="soup_kitchen" size={13} className="text-[#7b2cff]" />
+                          <span>Custom Recipe</span>
                         </span>
                       )}
                     </div>
@@ -481,6 +487,20 @@ export function AddFoodPage() {
         </div>
 
         {/* Active Item Detail & Portion Customization Panel */}
+        {!selectedFood && (
+          <div className="bg-page-background rounded-2xl p-space-lg flex flex-col items-center justify-center text-center gap-2 border border-dashed border-border-subtle py-8">
+            <div className="w-10 h-10 rounded-full bg-card-background flex items-center justify-center text-action-primary shadow-sm">
+              <Icon name="restaurant" size={22} />
+            </div>
+            <span className="font-label-md text-label-md text-ink-primary font-medium">
+              Select a food or recipe above
+            </span>
+            <p className="font-body-sm text-body-sm text-ink-secondary max-w-xs">
+              Tap any custom recipe or dish in the list above to view its macro breakdown and adjust portions.
+            </p>
+          </div>
+        )}
+
         {selectedFood && (
           <div className="bg-page-background rounded-2xl p-space-md flex flex-col gap-space-md shadow-inner">
             <div className="flex items-center justify-between">

@@ -1,5 +1,5 @@
 import { Icon } from '@/components/Icon';
-import { getLocalDate, addDays, formatDateDisplay, getMagnitudeStatus } from '@/lib/utils';
+import { getLocalDate, addDays, formatDateDisplay, parseLocalDate, getMagnitudeStatus } from '@/lib/utils';
 
 interface TodayHeroProps {
   currentDate: string;
@@ -61,10 +61,14 @@ export function TodayHero({
           title="Click to jump to today"
         >
           <span className="font-headline-sm text-headline-sm text-header-text">
-            {isToday ? 'Today' : 'Viewing'}
+            {isToday ? 'Today' : formatDateDisplay(currentDate)}
           </span>
           <span className="font-body-sm text-body-sm text-header-text/75">
-            • {formatDateDisplay(currentDate)}
+            • {parseLocalDate(currentDate).toLocaleDateString('en-IN', {
+                weekday: 'short',
+                day: 'numeric',
+                month: 'short',
+              })}
           </span>
         </div>
 
